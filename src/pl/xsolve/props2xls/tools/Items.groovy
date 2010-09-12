@@ -49,8 +49,8 @@ public class Items {
 
 protected static class Item {
   String filename
-  //lang, [key, value]
-  Map<String, Map> allProps = new HashMap()
+  //[lang, [key, value]]
+  Map<String, Map<String, String>> allProps = new HashMap()
 
   def Item(filename, locale) {
     this.filename = filename;

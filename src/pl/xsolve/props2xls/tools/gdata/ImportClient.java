@@ -129,7 +129,7 @@ public class ImportClient {
         List<CellEntry> cells = cellFeed.getEntries();
         for (CellEntry cell : cells) {
             Link editLink = cell.getEditLink();
-            service.delete(new URL(editLink.getHref()));
+            service.delete(new URL(editLink.getHref()), editLink.getEtag());
         }
     }
 

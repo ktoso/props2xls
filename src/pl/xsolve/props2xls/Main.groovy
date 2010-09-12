@@ -95,20 +95,25 @@ public class Main {
     pront "\n"
 
     //each "file"
-    itemz.list.each { item ->
-      item.allProps.each { entry ->
-        entry.value.each { pr ->
-          //property/value at last...
-          String property = pr.key
-          pront "${item.filename};;;;${property};;;;"
-          item.getInAllLangs(property).each { it ->
-            //it is a map of key values
-            pront "${it};;;;"
-          }
-          pront "\n"
-        }
+    for (item in itemz.list) {
+      def localesAndValues = item.allProps.values()
+
+      def prop = localesAndValues.asList().get(0)
+//    entry.value.each { pr ->
+//    def pr = entry.value[0]
+      prop.keySet().each { property ->
+//    def property = prop.get(anyLocale)
+//    property/value at last...
+//    String property = pr.key
+      pront "${item.filename};;;;${property};;;;"
+      item.getInAllLangs(property).each { it ->
+        //it is a map of key values
+        pront "${it};;;;"
       }
-    }
+      pront "\n"
+//  }
+  }
+}
 
     if (!username) {
       def console = System.console()
