@@ -1,3 +1,20 @@
+/*
+ * This file is part of props2xls.
+ *
+ * props2xls is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * props2xls is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with props2xls.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package pl.xsolve.props2xls.tools
 
 /**
@@ -38,8 +55,13 @@ public class Items {
 
     list.each { it ->
       it.allProps.keySet().each {lang ->
-        def p = lang.split("_")
-        Locale locale = new Locale(p[0], p[1])
+        Locale locale
+        if (lang.contains("_")) {
+          def p = lang.split("_")
+          locale = new Locale(p[0], p[1])
+        } else {
+          locale = new Locale(lang)
+        }
         def string = "${locale} (${locale.getDisplayLanguage()})"
         if (!langs.contains(string)) {
           langs.add(string)
