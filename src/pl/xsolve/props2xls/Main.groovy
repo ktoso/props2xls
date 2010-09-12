@@ -39,6 +39,11 @@ public class Main {
     def username = parser.getValue("username", "user", "u")
     def password = parser.getValue("password", "pass", "p")
 
+    int itemsPerBatch = 200
+    if(parser.containsKey("perbatch", "n")){
+      itemsPerBatch = Integer.valueOf(parser.getValue("perbatch", "n"))
+    }
+
     def spreadsheet = parser.getValue("spreadsheet", "s")
     if (!spreadsheet) spreadsheet = "props2xls"
 
@@ -130,12 +135,13 @@ public class Main {
     ImportClient.gogogo(
             username,
             password,
+            itemsPerBatch,
             spreadsheet,
             worksheet,
             sb.toString()
     )
 
-    print "\n\n# Done. \n# Execution took: ${new ElapsedTime(t0)}"
+    println "\n\n# Done. \n# Execution took: ${new ElapsedTime(t0)}"
   }
 
   static void pront(str) {

@@ -14,16 +14,17 @@ package pl.xsolve.props2xls.tools.gdata;
  * limitations under the License.
  */
 
+import com.google.gdata.client.spreadsheet.*;
 import com.google.gdata.client.spreadsheet.FeedURLFactory;
-import com.google.gdata.client.spreadsheet.SpreadsheetQuery;
-import com.google.gdata.client.spreadsheet.SpreadsheetService;
-import com.google.gdata.client.spreadsheet.WorksheetQuery;
 import com.google.gdata.data.Link;
+import com.google.gdata.data.batch.*;
 import com.google.gdata.data.spreadsheet.*;
+import com.google.gdata.util.ServiceException;
 import pl.xsolve.props2xls.tools.ProgressBar;
 
+import java.io.IOException;
 import java.net.URL;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -32,27 +33,31 @@ import java.util.regex.Pattern;
  */
 public class ImportClient {
 
+    public static final String DELIM = ";;;;";
+    private static int ITEMS_PER_BATCH = 100;
+
     private SpreadsheetService service;
+
+    private SpreadsheetEntry spreadsheet;
+
+    private WorksheetEntry backingEntry;
 
     private FeedURLFactory factory;
 
-    public ImportClient() throws Exception {
+    public ImportClient(String username, String password, int itemsPerBatch, String spreadsheetName) throws Exception {
+        ITEMS_PER_BATCH = itemsPerBatch;
+
         factory = FeedURLFactory.getDefault();
         service = new SpreadsheetService("Props-2-Xls");
-    }
-
-    /**
-     * Creates a client object for which the provided username and password
-     * produces a valid authentication.
-     *
-     * @param username the Google service user name
-     * @param password the corresponding password for the user name
-     * @throws Exception if error is encountered, such as invalid username and
-     *                   password pair
-     */
-    public ImportClient(String username, String password) throws Exception {
-        this();
         service.setUserCredentials(username, password);
+        service.setProtocolVersion(SpreadsheetService.Versions.V1);//bug workaround! http://code.google.com/p/gdata-java-client/issues/detail?id=103
+
+        spreadsheet = getSpreadsheet(spreadsheetName);
+        backingEntry = spreadsheet.getDefaultWorksheet();
+
+        CellQuery cellQuery = new CellQuery(backingEntry.getCellFeedUrl());
+        cellQuery.setReturnEmpty(true);
+        CellFeed cellFeed = service.getFeed(cellQuery, CellFeed.class);
     }
 
     /**
@@ -65,14 +70,11 @@ public class ImportClient {
      * @throws Exception if error is encountered, such as no spreadsheets with the
      *                   name
      */
-    public SpreadsheetEntry getSpreadsheet(String spreadsheet)
-            throws Exception {
+    public SpreadsheetEntry getSpreadsheet(String spreadsheet) throws Exception {
 
-        SpreadsheetQuery spreadsheetQuery
-                = new SpreadsheetQuery(factory.getSpreadsheetsFeedUrl());
+        SpreadsheetQuery spreadsheetQuery = new SpreadsheetQuery(factory.getSpreadsheetsFeedUrl());
         spreadsheetQuery.setTitleQuery(spreadsheet);
-        SpreadsheetFeed spreadsheetFeed = service.query(spreadsheetQuery,
-                SpreadsheetFeed.class);
+        SpreadsheetFeed spreadsheetFeed = service.query(spreadsheetQuery, SpreadsheetFeed.class);
         List<SpreadsheetEntry> spreadsheets = spreadsheetFeed.getEntries();
         if (spreadsheets.isEmpty()) {
             throw new Exception("No spreadsheets with that name");
@@ -85,72 +87,27 @@ public class ImportClient {
      * Get the WorksheetEntry for the worksheet in the spreadsheet with the
      * specified name.
      *
-     * @param spreadsheet the name of the spreadsheet
-     * @param worksheet   the name of the worksheet in the spreadsheet
+     * @param spreadsheetName the name of the spreadsheet
+     * @param worksheetName   the name of the worksheet in the spreadsheet
      * @return worksheet with the specified name in the spreadsheet with the
      *         specified name
      * @throws Exception if error is encountered, such as no spreadsheets with the
      *                   name, or no worksheet wiht the name in the spreadsheet
      */
-    public WorksheetEntry getWorksheet(String spreadsheet, String worksheet)
-            throws Exception {
+    public Worksheet getWorksheet(String spreadsheetName, String worksheetName) throws Exception {
+        SpreadsheetEntry spreadsheetEntry = getSpreadsheet(spreadsheetName);
 
-        SpreadsheetEntry spreadsheetEntry = getSpreadsheet(spreadsheet);
+        WorksheetQuery worksheetQuery = new WorksheetQuery(spreadsheetEntry.getWorksheetFeedUrl());
 
-        WorksheetQuery worksheetQuery
-                = new WorksheetQuery(spreadsheetEntry.getWorksheetFeedUrl());
-
-        worksheetQuery.setTitleQuery(worksheet);
-        WorksheetFeed worksheetFeed = service.query(worksheetQuery,
-                WorksheetFeed.class);
+        worksheetQuery.setTitleQuery(worksheetName);
+        WorksheetFeed worksheetFeed = service.query(worksheetQuery, WorksheetFeed.class);
         List<WorksheetEntry> worksheets = worksheetFeed.getEntries();
         if (worksheets.isEmpty()) {
             throw new Exception("No worksheets with that name in spreadhsheet "
                     + spreadsheetEntry.getTitle().getPlainText());
         }
 
-        return worksheets.get(0);
-    }
-
-    /**
-     * Clears all the cell entries in the worksheet.
-     *
-     * @param spreadsheet the name of the spreadsheet
-     * @param worksheet   the name of the worksheet
-     * @throws Exception if error is encountered, such as bad permissions
-     */
-    public void purgeWorksheet(String spreadsheet, String worksheet)
-            throws Exception {
-
-        WorksheetEntry worksheetEntry = getWorksheet(spreadsheet, worksheet);
-        CellFeed cellFeed = service.getFeed(worksheetEntry.getCellFeedUrl(),
-                CellFeed.class);
-
-        List<CellEntry> cells = cellFeed.getEntries();
-        for (CellEntry cell : cells) {
-            Link editLink = cell.getEditLink();
-            service.delete(new URL(editLink.getHref()), editLink.getEtag());
-        }
-    }
-
-    /**
-     * Inserts a cell entry in the worksheet.
-     *
-     * @param spreadsheet the name of the spreadsheet
-     * @param worksheet   the name of the worksheet
-     * @param row         the index of the row
-     * @param column      the index of the column
-     * @param input       the input string for the cell
-     * @throws Exception if error is encountered, such as bad permissions
-     */
-    public void insertCellEntry(String spreadsheet, String worksheet,
-                                int row, int column, String input) throws Exception {
-
-        URL cellFeedUrl = getWorksheet(spreadsheet, worksheet).getCellFeedUrl();
-
-        CellEntry newEntry = new CellEntry(row, column, input);
-
-        service.insert(cellFeedUrl, newEntry);
+        return new Worksheet(worksheets.get(0), service);
     }
 
     /**
@@ -167,40 +124,191 @@ public class ImportClient {
                 + "delimited text file into the worksheet.");
     }
 
-    public static void gogogo(String username, String password, String spreadsheet, String worksheet, String data) throws Exception {
+    public static void gogogo(String username, String password, int itemsPerBatch, String spreadsheetName, String worksheetName, String data) throws Exception {
         System.out.println("# Initializing upload to Google Spreadsheets...");
         System.out.print("# Logging in as: \"" + username + "\"... ");
-        ImportClient client = new ImportClient(username, password);
+        ImportClient client = new ImportClient(username, password, itemsPerBatch, spreadsheetName);
         System.out.println("Success!");
 
-        System.out.print("# Cleaning: spreadsheet=\"" + spreadsheet + "\", worksheet=\"" + worksheet + "\"... ");
-        client.purgeWorksheet(spreadsheet, worksheet);
-        System.out.println("Success!");
-
-        Pattern delim = Pattern.compile(";;;;");
+        Pattern delim = Pattern.compile(DELIM);
         try {
             int row = 0;
             String[] allLines = data.split("\n");
 
             int currentCell = 1;
             int allRow = allLines.length;
-            System.out.println("# Inserting " + allRow + " rows... ");
-            System.out.println("# You may open the spreadsheet on https://docs.google.com/#owned-by-me to see this process in real time!");
+            System.out.println("# Preparing " + allRow + " rows to be updated... ");
+
+            List<CellEntry> updatedCells = new LinkedList<CellEntry>();
+            Worksheet workSheet = client.getWorksheet(spreadsheetName, worksheetName);
+
+            //todo batch stuff here
+            ProgressBar.updateProgress(0, allRow);
             for (String line : allLines) {
-
-                ProgressBar.updateProgress(currentCell++, allRow);
-
                 // Break up the line by the delimiter and insert the cells
                 String[] cells = delim.split(line, -1);
                 for (int col = 0; col < cells.length; col++) {
-                    client.insertCellEntry(spreadsheet, worksheet, row + 1, col + 1, cells[col]);
+                    // old way - send the change
+//                    client.insertCellEntry(spreadsheet, worksheet, row + 1, col + 1, cells[col]);
+
+                    // prepare change
+                    CellEntry cellEntry = workSheet.getCell(row + 1, col + 1);
+                    String value = cells[col];
+                    cellEntry.changeInputValueLocal(value);
+                    updatedCells.add(cellEntry);
+                }
+                //todo end batch stuff here
+                // Advance the loop
+                ProgressBar.updateProgress(++row, allRow);
+            }
+
+            //todo send batch stuff here
+            //send the batches
+            int allBatches = updatedCells.size();
+            int currentBatch = 0;
+
+            List<List<CellEntry>> batches = chunkList(updatedCells, ITEMS_PER_BATCH);
+            System.out.println("\n\n# Uploading changes in " + batches.size() + " chunks, ");
+            System.out.println("# containing a total of " + allBatches + " operations... ");
+
+            for (List<CellEntry> batch : batches) {
+                CellFeed batchFeed = new CellFeed();
+                for (CellEntry cellEntry : batch) {
+                    ProgressBar.updateProgress(++currentBatch, allBatches);
+                    Cell cell = cellEntry.getCell();
+                    BatchUtils.setBatchId(cellEntry, "R" + cell.getRow() + "C" + cell.getCol());
+                    BatchUtils.setBatchOperationType(cellEntry, BatchOperationType.UPDATE);
+                    batchFeed.getEntries().add(cellEntry);
                 }
 
-                // Advance the loop
-                row++;
+                Link batchLink = workSheet.getBatchUpdateLink();
+                CellFeed batchResultFeed = client.service.batch(new URL(batchLink.getHref()), batchFeed);
+                // Make sure all the operations were successful.
+                for (CellEntry entry : batchResultFeed.getEntries()) {
+                    if (!BatchUtils.isSuccess(entry)) {
+                        String batchId = BatchUtils.getBatchId(entry);
+                        BatchStatus status = BatchUtils.getBatchStatus(entry);
+                        System.err.println("Failed entry");
+                        System.err.println("\t" + batchId + " failed (" + status.getReason() + ") ");
+                        return;
+                    }
+                }
             }
+            //todo end send batch stuff here
+
         } catch (Exception e) {
-            throw e;
+            e.printStackTrace();
         }
     }
+
+    /**
+     * Chunks a list of items into sublists where each sublist contains at most
+     * the specified maximum number of items.
+     *
+     * @param ts        The list of elements to chunk
+     * @param chunkSize The maximum number of elements per sublist
+     * @return A list of sublists, where each sublist has chunkSize or fewer elements
+     *         and all elements from ts are present, in order, in some sublist
+     */
+    private static <T> List<List<T>> chunkList(List<? extends T> ts, int chunkSize) {
+        Iterator<? extends T> iterator = ts.iterator();
+        List<List<T>> returnList = new LinkedList<List<T>>();
+        while (iterator.hasNext()) {
+            List<T> sublist = new LinkedList<T>();
+            for (int i = 0; i < chunkSize && iterator.hasNext(); i++) {
+                sublist.add(iterator.next());
+            }
+            returnList.add(sublist);
+        }
+        return returnList;
+    }
+
+/****************************************************************************
+ * HELPER CLASSES
+ *
+ * These classes are slightly smarter versions of more standard classes,
+ * equipped with little bits of extra functionality that are useful for our
+ * purposes.
+ ****************************************************************************/
+
+    /**
+     * Wrapper around Spreadsheets Worksheet entries that adds some utility
+     * methods useful for our purposes.
+     */
+    private static class Worksheet {
+        private final SpreadsheetService spreadsheetService;
+        private WorksheetEntry backingEntry;
+        private CellFeed cellFeed;
+        private int rows;
+        private int columns;
+        private CellEntry[][] cellEntries;
+
+        Worksheet(WorksheetEntry backingEntry, SpreadsheetService spreadsheetService) throws IOException, ServiceException {
+
+            this.backingEntry = backingEntry;
+            this.spreadsheetService = spreadsheetService;
+            this.rows = backingEntry.getRowCount();
+            this.columns = backingEntry.getColCount();
+            refreshCachedData();
+        }
+
+        /**
+         * Presents the given cell feed as a map from row, column pair to CellEntry.
+         */
+        private void refreshCachedData() throws IOException, ServiceException {
+
+            CellQuery cellQuery = new CellQuery(backingEntry.getCellFeedUrl());
+            cellQuery.setReturnEmpty(true);
+            this.cellFeed = spreadsheetService.getFeed(cellQuery, CellFeed.class);
+
+//            A subtlety: Spreadsheets row,col numbers are 1-based whereas the
+//            cellEntries array is 0-based. Rather than wasting an extra row and
+//            column worth of cells in memory, we adjust accesses by subtracting
+//            1 from each row or column number.
+            cellEntries = new CellEntry[rows][columns];
+            for (CellEntry cellEntry : cellFeed.getEntries()) {
+                Cell cell = cellEntry.getCell();
+                cellEntries[cell.getRow() - 1][cell.getCol() - 1] = cellEntry;
+            }
+        }
+
+        /**
+         * Gets the cell entry corresponding to the given row and column.
+         */
+        CellEntry getCell(int row, int column) {
+            return cellEntries[row - 1][column - 1];
+        }
+
+        /**
+         * Returns this worksheet's column count.
+         */
+        int getColCount() {
+            return columns;
+        }
+
+        /**
+         * Returns this worksheet's row count.
+         */
+        int getRowCount() {
+            return rows;
+        }
+
+        /**
+         * Sets this worksheets's row count.
+         */
+        void setRowCount(int newRowCount) throws IOException, ServiceException {
+            rows = newRowCount;
+            backingEntry.setRowCount(newRowCount);
+            backingEntry = backingEntry.update();
+            refreshCachedData();
+        }
+
+        /**
+         * Gets a link to the batch update URL for this worksheet.
+         */
+        Link getBatchUpdateLink() {
+            return cellFeed.getLink(Link.Rel.FEED_BATCH, Link.Type.ATOM);
+        }
+    }
+
 }
