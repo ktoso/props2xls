@@ -33,45 +33,50 @@ public class Items {
     "${list.size()}"
   }
 
-  public Set langs() {
-    Set langs = new HashSet()
+  public List langs() {
+    List langs = []
+
     list.each { it ->
       it.allProps.keySet().each {lang ->
         def p = lang.split("_")
         Locale locale = new Locale(p[0], p[1])
-        langs.add("${locale} (${locale.getDisplayLanguage()})")
+        def string = "${locale} (${locale.getDisplayLanguage()})"
+        if (!langs.contains(string)) {
+          langs.add(string)
+        }
       }
-    }
 
-    langs
+      langs.reverse()
+    }
   }
+
 }
 
 protected static class Item {
-  String filename
-  //[lang, [key, value]]
-  Map<String, Map<String, String>> allProps = new HashMap()
+    String filename
+    //[lang, [key, value]]
+    Map<String, Map<String, String>> allProps = new HashMap()
 
-  def Item(filename, locale) {
-    this.filename = filename;
-    allProps.put(locale, new HashMap())
-  }
-
-  def add(String locale, String key, String value) {
-    if (!allProps.containsKey(locale)) {
+    def Item(filename, locale) {
+      this.filename = filename;
       allProps.put(locale, new HashMap())
-
     }
 
-    allProps.get(locale).put(key, value)
-  }
+    def add(String locale, String key, String value) {
+      if (!allProps.containsKey(locale)) {
+        allProps.put(locale, new HashMap())
 
-  def getInAllLangs(String key) {
-    def all = []
-    allProps.entrySet().each { entry ->
-      all += entry.getValue().get(key)
+      }
+
+      allProps.get(locale).put(key, value)
     }
 
-    all
+    def getInAllLangs(String key) {
+      def all = []
+      allProps.entrySet().each { entry ->
+        all += entry.getValue().get(key)
+      }
+
+      all
+    }
   }
-}

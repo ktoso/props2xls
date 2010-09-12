@@ -87,8 +87,10 @@ public class Main {
 
     pront start
 
-    itemz.langs().each { lang ->
-      def string = "${lang};;;;"
+    itemz.langs().allProps.get(0).each { lang ->
+      def p = lang.key.split("_")
+      Locale locale = new Locale(p[0], p[1])      
+      def string = "${locale} (${locale.getDisplayLanguage()});;;;"
 
       pront string
     }
