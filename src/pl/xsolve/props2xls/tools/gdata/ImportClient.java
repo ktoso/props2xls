@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
 public class ImportClient {
 
     public static final String DELIM = ";;;;";
-    private static int ITEMS_PER_BATCH = 100;
+    private static int ITEMS_PER_BATCH = 200;
 
     private SpreadsheetService service;
 
@@ -145,7 +145,6 @@ public class ImportClient {
             List<CellEntry> updatedCells = new LinkedList<CellEntry>();
             Worksheet workSheet = client.getWorksheet(spreadsheetName, worksheetName);
 
-            //todo batch stuff here
             ProgressBar.updateProgress(0, allRow);
             for (String line : allLines) {
                 // Break up the line by the delimiter and insert the cells
@@ -160,12 +159,10 @@ public class ImportClient {
                     cellEntry.changeInputValueLocal(value);
                     updatedCells.add(cellEntry);
                 }
-                //todo end batch stuff here
                 // Advance the loop
                 ProgressBar.updateProgress(++row, allRow);
             }
 
-            //todo send batch stuff here
             //send the batches
             int allBatches = updatedCells.size();
             int currentBatch = 0;
@@ -197,7 +194,6 @@ public class ImportClient {
                     }
                 }
             }
-            //todo end send batch stuff here
 
         } catch (Exception e) {
             e.printStackTrace();

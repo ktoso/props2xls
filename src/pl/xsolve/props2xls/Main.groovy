@@ -47,7 +47,26 @@ public class Main {
   public static void main(String[] args) {
     def parser = new SimpleCommandLineParser(args)
     if (args.length < 1) {
-      println "Need to specify directory to be searched."
+      println """"
+USAGE:
+
+./props2xls.sh [OPTIONS] [FOLDER]
+OR
+java -jar props2xls.jar [OPTIONS] [FOLDER]
+
+[OPTIONS] = {
+  -u, -user, --username     google account username
+                            default = interactive mode, the app wil ask you for this param
+  -p, --pass, --password    google account password
+                            default = interactive mode, the app wil ask you for this param
+  -n, --perbatch            number of updates per one "batch update"
+                            default = 200
+  -s, --spreadsheet         spreadsheet name to import data into
+                            default = props2xls
+  -w, --worksheet           worksheet (in this spreadsheet) name to import data into
+                            default = properties
+}
+"""
       System.exit(-1)
     }
 
