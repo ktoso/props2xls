@@ -1,0 +1,9 @@
+video of the app in action: http://www.youtube.com/watch?v=YnIK9jKcBis
+
+As I've been recently given a task to "copy & paste" all our properties into an specyfic document on google docs - that the client wanted to use in order to translate these properties into other languages. Of course I decided not to do this by hand - but script it - and that's how props2xls came to be.
+
+It's an Groovy + Java app that traverses an directory searching for *.properties files, and then matches their names together - and extracts their Locale from the filenames. Next, those strings are uploaded into an specified Google Spreadsheet. You can use any google account + password anc choose which spreadsheet/worksheet should be filled out with your data.
+
+Note that the bottleneck here is the inserting into the Spreadsheet. This can be very much improved as one may use Batch inserts.
+
+PS: One might call it an proof-of-concent, as the code is quite ugly but it was written in about 3-4hours. And will probably spare us a lot of time if some client wants to translate our properties once again... ;-)
